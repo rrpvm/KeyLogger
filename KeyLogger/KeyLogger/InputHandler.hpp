@@ -3,14 +3,17 @@
 #include <fstream>
 #include <string>
 #include <Windows.h>
+#include <optional>
 class InputHandler : public Singleton<InputHandler> {
 public:
 	InputHandler() {};
 	~InputHandler() {};
-	static void resetInputArray(bool* array, int size);
-	void printToFile(const char* directory);
-	std::string GetDirectoryToFile();
-	void AddToBuffer(char value);
+	static std::string GetDirectoryToFile();
 	void GetPressedChar();
+	void printToFile(const char* directory);	
+	static std::pair<int, int>GetTimeHM(int seconds);
+	std::optional<std::string>GetForegroundWindowName();
+private:
 	std::string buffer;
+	std::string temporaryBuffer;
 };

